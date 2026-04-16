@@ -118,20 +118,6 @@ def main():
   version = requests.get(version_url, headers=headers, verify=False)
   print("Jamf Pro version:", version.json()["version"])
 
-  # # get basic info for all computers
-  # computers_url = f"{JAMF_URL}/JSSResource/computers/subset/basic"
-  # headers = {
-  #   "accept": "application/json",
-  #   "authorization": f"Bearer {access_token}"
-  # }
-  # response = requests.get(computers_url, headers=headers, verify=False)
-  # response_json = response.json()
-  # total = 0
-  # for computer in response_json.get("computers", []):
-  #   total += 1
-  # response_json["total"] = total
-  # response_json["max_id"] = max([c["id"] for c in response_json.get("computers", [])]) if total > 0 else 0
-
   # get info for all computers
   computers, access_token, token_expiration_epoch  = get_computers_basic(access_token, token_expiration_epoch)
   computers_users, access_token, token_expiration_epoch  = get_computers_userandlocation(access_token, token_expiration_epoch)
