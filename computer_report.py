@@ -1,20 +1,20 @@
-# get_report.py
+# computer_report.py
 
-from jamf_credential import JAMF_URL, get_token, invalidate_token
-import requests
-import urllib3
-import time
-import json
+import copy
 import csv
 from dateutil import parser
+from jamf_credential import JAMF_URL, get_token, invalidate_token
+import json
 import re
-import copy
+import requests
+import time
+import urllib3
 
 """
 - parses response_computers.json
-- extracts `Rundle Device Report` extension attribute from each computer
-- cleans up column data for report
-- writes results to data/output.csv
+- extract `Rundle Device Report` extension attribute from each computer
+- cleanup column data for report
+- write results to data/computers.csv
 """
 
 TESTING = False
@@ -102,15 +102,6 @@ def normalize_uptime(uptime_str: str) -> int:
   if match_less:
     uptime_int += int(match_less.group(0).split(":")[0])
   return uptime_int
-  # match = re.search(r'((\d+)\s+days?,\s+)?((\d+)\s+hours?,\s+)?((\d+)\s+minutes?)?', uptime_str)
-  # if match:
-  #   days = int(match.group(1)) if match.group(1) else 0
-  #   hours = int(match.group(2)) if match.group(2) else 0
-  #   minutes = int(match.group(3)) if match.group(3) else 0
-  #   return days * 24 + hours + minutes // 60
-  # else:
-  #   print(f"BAD_NORMALIZE {uptime_str}")
-  # return uptime_str.split("up")[1].strip()
 
 def clean_outputs(device_report):
   # uptime
@@ -264,7 +255,7 @@ def main():
     json.dump(raw, f)
 
   # write entries to csv
-  with open("data/output.csv", "w", newline='') as f:
+  with open("data/computers.csv", "w", newline='') as f:
     writer = csv.writer(f)
     headers = [col["header"] for col in COLUMNS]
     writer.writerow(headers)

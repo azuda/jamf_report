@@ -23,8 +23,8 @@ def upload_csv_to_sheet(filepath, tab_name):
     data = list(csv.reader(f))
   worksheet.update(data)
 
-upload_csv_to_sheet("data/output.csv", "Computer Report")
-# upload_csv_to_sheet("data/output2.csv", "Device Report")
+upload_csv_to_sheet("data/computers.csv", "Computer Report")
+# upload_csv_to_sheet("data/devices.csv", "Device Report")
 
 # with open("data/output.csv", "r") as f:
 #   content = f.read()
