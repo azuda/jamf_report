@@ -251,8 +251,8 @@ def main():
   invalidate_token(access_token)
 
   # write raw
-  with open("data/raw.json", "w") as f:
-    json.dump(raw, f)
+  # with open("data/raw.json", "w") as f:
+  #   json.dump(raw, f)
 
   # write entries to csv
   with open("data/computers.csv", "w", newline='') as f:
