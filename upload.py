@@ -24,8 +24,8 @@ def upload_csv_to_sheet(filepath, tab_name):
   worksheet.update(data)
 
 upload_csv_to_sheet("data/computers.csv", "Computer Report")
-# upload_csv_to_sheet("data/devices.csv", "Device Report")
+upload_csv_to_sheet("data/devices.csv", "Device Report")
 
-# with open("data/output.csv", "r") as f:
+# with open("data/computers.csv", "r") as f:
 #   content = f.read()
 #   client.import_csv(spreadsheet.id, data=content)
