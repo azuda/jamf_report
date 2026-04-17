@@ -106,13 +106,14 @@ def combine_devices(devices_response, devices_userandlocation_response, devices_
   total = 0
   for d in devices_json["devices"]:
     total += 1
-    d["date"], d["os"], d["realname"], d["email"], d["position"] = None, None, None, None, None
+    d["date"], d["os"], d["realname"], d["email"], d["position"], d["department"] = None, None, None, None, None, None
     for du in devices_users_json:
       if d["id"] == int(du["mobileDeviceId"]):
         du_data = du["userAndLocation"]
         d["realname"] = du_data["realName"]
         d["email"] = du_data["emailAddress"]
         d["position"] = du_data["position"]
+        d["department"] = du_data["department"]
         break
     for dg in devices_general_json:
       if d["id"] == int(dg["mobileDeviceId"]):
@@ -150,12 +151,12 @@ def main():
   devices_general, access_token, token_expiration_epoch = get_devices_general(access_token, token_expiration_epoch)
   devices_json = combine_devices(devices, devices_users, devices_general)
 
-  # with open("data/d.json", "w") as f:
-  #   f.write(json.dumps(devices.json(), indent=2))
-  # with open("data/du.json", "w") as f:
-  #   f.write(json.dumps(devices_users.json(), indent=2))
-  # with open("data/dg.json", "w") as f:
-  #   f.write(json.dumps(devices_general.json(), indent=2))
+  with open("data/d.json", "w") as f:
+    f.write(json.dumps(devices.json(), indent=2))
+  with open("data/du.json", "w") as f:
+    f.write(json.dumps(devices_users.json(), indent=2))
+  with open("data/dg.json", "w") as f:
+    f.write(json.dumps(devices_general.json(), indent=2))
 
   # write to file
   if not os.path.exists("data"):
