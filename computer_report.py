@@ -120,7 +120,7 @@ COLUMNS = [
   {"header": "SN", "func": _get_sn},
   {"header": "OS", "func": _get_os},
   {"header": "MODEL", "func": _get_model},
-  {"header": "LOGGED_IN_USER", "func": _get_user},
+  {"header": "USER", "func": _get_user},
   {"header": "DEPT", "func": _get_department},
   {"header": "EGY", "func": _get_position},
   {"header": "PURCHASE_PRICE", "func": _get_purchase_price},
