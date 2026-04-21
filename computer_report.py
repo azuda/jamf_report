@@ -1,90 +1,47 @@
 # computer_report.py
 
-import copy
 import csv
 from dateutil import parser
-from jamf_credential import JAMF_URL, get_token, invalidate_token
+from dateutil.tz import tzoffset
 import json
 import re
-import requests
-import time
 import urllib3
 
 """
 - parses response_computers.json
-- extract `Rundle Device Report` extension attribute from each computer
-- cleanup column data for report
+- convert report string to json
+- cleanup columns for report
 - write results to data/computers.csv
 """
 
-TESTING = False
-LIMIT = 100
+# define ambiguous timezones thx claude
+TZ_INFO = {
+  "CDT": tzoffset("CDT", -5 * 3600),  # UTC-5
+  "CST": tzoffset("CST", -6 * 3600),  # UTC-6
+  "EDT": tzoffset("EDT", -4 * 3600),  # UTC-4
+  "EST": tzoffset("EST", -5 * 3600),  # UTC-5
+  "MDT": tzoffset("MDT", -6 * 3600),  # UTC-6
+  "MST": tzoffset("MST", -7 * 3600),  # UTC-7
+  "PDT": tzoffset("PDT", -7 * 3600),  # UTC-7
+  "PST": tzoffset("PST", -8 * 3600),  # UTC-8
+}
 
 with open("data/response_computers.json") as f:
   DATA = json.load(f)
 
 # ==================================================================================
 
-def get_extension_attributes(computer_id, access_token, token_expiration_epoch):
-  # renew token if expiration < 15 secs
-  current_epoch = int(time.time())
-  if current_epoch > token_expiration_epoch - 15:
-    access_token, expires_in = get_token()
-    token_expiration_epoch = current_epoch + expires_in
-    print(f"Token valid for {expires_in} seconds")
+def convert_report(report_str):
+  report_dict = {}
+  lines = report_str.split("\n\n")
+  for line in lines:
+    kvp = line.split("\n")
+    report_dict[kvp[0]] = kvp[1] if len(kvp) > 1 else None
+  return report_dict
 
-  url = f"{JAMF_URL}/JSSResource/computers/id/{computer_id}/subset/extension_attributes"
-  headers = {
-    "accept": "application/json",
-    "authorization": f"Bearer {access_token}"
-  }
-
-  # GET computer extension attributes
-  try:
-    response = requests.get(url, headers=headers, verify=False)
-  except:
-    return None, access_token, token_expiration_epoch
-  # print(response.text)
-
-  # resolve response
-  if response and response.status_code == 200:
-    print(f"Success: got extension attributes for computer {computer_id} / {DATA['max_id']}")
-    return response.json(), access_token, token_expiration_epoch
-  else:
-    print(f"Fail: status {response.status_code}: {response.text}")
-
-  return None, access_token, token_expiration_epoch
-
-def parse_response(response: dict) -> str:
-  # extract extension_attributes from response object
-  try:
-    extension_attributes = response.get("computer", {}).get("extension_attributes", [])
-  except:
-    print("Can't parse response - extension_attributes missing")
-    return None
-
-  # extract report string from extension_attributes
-  for attr in extension_attributes:
-    if attr["name"] == "Rundle Device Report":
-      report = attr["value"]
-      return report
-  return None
-
-def report_to_json(report):
-  # convert report string to json
-  report_json = {}
-  if report:
-    items = report.strip().split("\n\n")
-    for item in items:
-      lines = item.split("\n")
-      if len(lines) == 2:
-        key = lines[0].strip()
-        value = lines[1].strip()
-        report_json[key] = value
-  else:
-    return None
-
-  return report_json
+def convert_time(timestamp):
+  dt = parser.parse(timestamp, tzinfos=TZ_INFO)
+  return dt.strftime("%Y-%m-%d %H:%M:%S")
 
 def normalize_uptime(uptime_str: str) -> int:
   # uptime str format: `Time since boot: x day(s), y hour(s), z minute(s)`
@@ -103,39 +60,35 @@ def normalize_uptime(uptime_str: str) -> int:
     uptime_int += int(match_less.group(0).split(":")[0])
   return uptime_int
 
-def clean_outputs(device_report):
+def clean_outputs(computer):
+  report = computer.get("report_dict")
+
   # uptime
   try:
-    hours = normalize_uptime(device_report["UPTIME"])
-    # print(hours)
-    device_report["UPTIME"] = hours
+    hours = normalize_uptime(report["UPTIME"])
+    report["UPTIME"] = hours
   except:
     pass
 
   # filevault
   try:
-    fv_val = device_report["FILEVAULT"]
-    device_report["FILEVAULT"] = device_report["FILEVAULT"].split("token is")[-1].strip()
+    report["FILEVAULT"] = report["FILEVAULT"].split("token is")[-1].strip()
   except:
     pass
 
-  return device_report
-
-def convert_time(timestamp):
-  dt = parser.parse(timestamp)
-  return dt.strftime("%Y-%m-%d %H:%M:%S")
+  computer["report_dict"] = report
+  return
 
 # ==================================================================================
 
-def _get_date(parsed, computer):
-  if parsed and parsed.get("DATE"):
+def _get_date(computer):
+  report = computer.get("report_dict")
+  # print(f"converting date for computer {computer.get("name")}")
+  if report and report.get("DATE"):
     try:
-      return convert_time(parsed["DATE"])
+      return convert_time(report["DATE"])
     except:
-      try:
-        return convert_time(parsed.get("--- RUNDLE DEVICE REPORT ---"))
-      except:
-        return parsed.get("DATE")
+      return report.get("DATE")
   # fallback to last checkin date
   try:
     return convert_time(computer["report_date_utc"])
@@ -145,40 +98,21 @@ def _get_date(parsed, computer):
     except:
       return None
 
-def _get_name(parsed, computer):
-  return (parsed.get("NAME") if parsed else None) or computer.get("name")
+def _get_name(computer):
+  return computer.get("name")
 
-def _get_sn(parsed, computer):
-  return (parsed.get("SN") if parsed else None) or computer.get("serial_number")
+def _get_sn(computer):
+  return computer.get("serial_number")
 
-def _get_os(parsed, computer):
-  return parsed.get("OS") if parsed else None
+def _get_os(computer):
+  report = computer.get("report_dict")
+  return report.get("OS") if report else None
 
-def _get_logged_in_user(parsed, computer):
-  return (parsed.get("LOGGED_IN_USER") if parsed else None) or computer.get("username")
+def _get_logged_in_user(computer):
+  return computer.get("username")
 
-def _get_uptime(parsed, computer):
-  # assume parsed uptime is normalized (int hours) if present
-  if parsed and parsed.get("UPTIME") is not None:
-    return parsed.get("UPTIME")
-  return None
-
-def _get_filevault(parsed, computer):
-  if parsed and parsed.get("FILEVAULT") is not None:
-    return parsed.get("FILEVAULT")
-  return None
-
-def _get_jamf_manage(parsed, computer):
-  return parsed.get("JAMF_MANAGE") if parsed else None
-
-def _get_cloudflare_status(parsed, computer):
-  return parsed.get("CLOUDFLARE_STATUS") if parsed else None
-
-def _get_cloudflare_org(parsed, computer):
-  return parsed.get("CLOUDFLARE_ORG") if parsed else None
-
-def _get_department(parsed, computer):
-  full = (parsed.get("DEPT") if parsed else None) or computer.get("department")
+def _get_department(computer):
+  full = computer.get("department")
   if re.search(r'(?i)\bStudent\b', full):
     return "Student"
   elif re.search(r'(?i)\b(?:Staff|Teacher|Admin|Childcare)\b', full):
@@ -186,14 +120,37 @@ def _get_department(parsed, computer):
   else:
     return full
 
-def _get_position(parsed, computer):
-  full = (parsed.get("EGY") if parsed else None) or computer.get("position")
+def _get_position(computer):
+  full = computer.get("position") if computer else None
   if not full:
     return None
   m = re.search(r'(EGY)(\d{4})', full, re.IGNORECASE)
   if m:
     return int(m.group(2))
   return full
+
+def _get_uptime(computer):
+  report = computer.get("report_dict") if computer else None
+  # assume parsed uptime is normalized (int hours) if present
+  if report and report.get("UPTIME") is not None:
+    return report.get("UPTIME")
+  return None
+
+def _get_filevault(computer):
+  report = computer.get("report_dict")
+  return report.get("FILEVAULT") if report else None
+
+def _get_jamf_manage(computer):
+  report = computer.get("report_dict")
+  return report.get("JAMF_MANAGE") if report else None
+
+def _get_cloudflare_status(computer):
+  report = computer.get("report_dict")
+  return report.get("CLOUDFLARE_STATUS") if report else None
+
+def _get_cloudflare_org(computer):
+  report = computer.get("report_dict")
+  return report.get("CLOUDFLARE_ORG") if report else None
 
 # add or modify columns here to be included in the final report
 COLUMNS = [
@@ -214,65 +171,38 @@ COLUMNS = [
 # ==================================================================================
 
 def main():
-  # init jamf api access token
-  access_token, expires_in = get_token()
-  token_expiration_epoch = int(time.time()) + expires_in
-
   computers = DATA["computers"]
 
-  raw = []
-  entries = []
-  count = LIMIT
-
+  # convert report string to dict and add to all computers
   for computer in computers:
-    if TESTING:
-      count -= 1
-      if count <= 0:
-        break
-
-    response, access_token, token_expiration_epoch = get_extension_attributes(computer["id"], access_token, token_expiration_epoch)
-    line = report_to_json(parse_response(response))
-    raw.append(copy.deepcopy(line))
-
-    if line:
-      try:
-        line["DATE"] = convert_time(line["DATE"])
-      except:
-        print(f"BAD REPORT: {line}")
-      # clean command outputs and add to entries
-      cleaned = clean_outputs(line)
-      entries.append({"parsed": cleaned, "computer": computer})
+    report_str = computer.get("report")
+    if report_str:
+      computer["report_dict"] = convert_report(report_str)
     else:
-      print(f"BAD LINE: {line}")
-      entries.append({"parsed": None, "computer": computer})
+      computer["report_dict"] = None
+    clean_outputs(computer)
 
-
-  # kill jamf api access token
-  invalidate_token(access_token)
-
-  # write raw
-  # with open("data/raw.json", "w") as f:
-  #   json.dump(raw, f)
+  # # write to debug file
+  # with open("debug/c_final.json", "w") as f:
+  #   json.dump(computers, f, indent=2)
 
   # write entries to csv
   with open("data/computers.csv", "w", newline='') as f:
     writer = csv.writer(f)
     headers = [col["header"] for col in COLUMNS]
     writer.writerow(headers)
-    for entry in entries:
-      parsed = entry["parsed"]
-      computer = entry["computer"]
+    for computer in computers:
       row = []
       for col in COLUMNS:
         try:
-          val = col["func"](parsed, computer)
+          val = col["func"](computer)
         except Exception:
           val = None
         # normalize None -> empty cell, keep numeric and string values as-is
         row.append("" if val is None else val)
       writer.writerow(row)
 
-  print("Done")
+  print("Done computer_report.py")
 
 # ==================================================================================
 
