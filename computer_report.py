@@ -59,7 +59,11 @@ def clean_outputs(computer):
 
   # filevault
   try:
-    report["FILEVAULT"] = report["FILEVAULT"].split("token is")[-1].strip()
+    fv = report["FILEVAULT"].split("]")[-1].strip()
+    try:
+      report["FILEVAULT"] = fv.split(" ")[3].strip()
+    except:
+      report["FILEVAULT"] = fv
   except:
     pass
 
@@ -146,9 +150,9 @@ def main():
       computer["report_dict"] = {}
     clean_outputs(computer)
 
-  # # write to debug file
-  # with open("debug/c_final.json", "w") as f:
-  #   json.dump(computers, f, indent=2)
+  # debug
+  with open("debug/c_final.json", "w") as f:
+    json.dump(computers, f, indent=2)
 
   # write entries to csv
   with open("data/computers.csv", "w", newline='') as f:
