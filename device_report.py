@@ -1,17 +1,17 @@
 # device_report.py
 
+"""
+- parses `response_devices.json`
+- cleanup columns for report
+- write results to `data/devices.csv`
+"""
+
 import csv
 import json
 import urllib3
 
 from util import convert_time
 from util import _get_name, _get_sn, _get_model, _get_user, _get_department, _get_position, _get_purchase_price, _get_purchase_date
-
-"""
-- parses response_devices.json
-- cleanup columns for report
-- write results to data/devices.csv
-"""
 
 with open("data/response_devices.json") as f:
   DATA = json.load(f)

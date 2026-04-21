@@ -1,5 +1,12 @@
 # computer_report.py
 
+"""
+- parses `response_computers.json`
+- convert extension attribute report string to json
+- cleanup columns for report
+- write results to `data/computers.csv`
+"""
+
 import csv
 import json
 import re
@@ -7,13 +14,6 @@ import urllib3
 
 from util import convert_time
 from util import _get_name, _get_sn, _get_model, _get_user, _get_department, _get_position, _get_purchase_price, _get_purchase_date
-
-"""
-- parses response_computers.json
-- convert report string to json
-- cleanup columns for report
-- write results to data/computers.csv
-"""
 
 with open("data/response_computers.json") as f:
   DATA = json.load(f)

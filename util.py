@@ -1,12 +1,12 @@
 # util.py
 
-from dateutil import parser
-from dateutil.tz import tzoffset
-import re
-
 """
 - helper functions for report generation
 """
+
+from dateutil import parser
+from dateutil.tz import tzoffset
+import re
 
 # ==================================================================================
 

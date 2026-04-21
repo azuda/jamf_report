@@ -1,17 +1,17 @@
 # query_jamf.py
 
-from jamf_credential import JAMF_URL, get_token, invalidate_token, check_token_expiration
+"""
+- get info on all computers + mobile devices via jamf api
+- sort + combine relevant info to dicts
+- write result dicts to `data/response_computers.json` and `data/response_devices.json`
+"""
+
+from jamf_credential import JAMF_URL, check_token_expiration, get_token, invalidate_token
 import json
 import os
 import requests
 import time
 import urllib3
-
-"""
-- get info on all computers + mobile devices via jamf api
-- sort + combine relevant info into dicts
-- write result dicts to `data/response_computers.json` and `data/response_devices.json`
-"""
 
 # ==================================================================================
 
