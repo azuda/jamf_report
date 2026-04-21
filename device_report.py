@@ -1,12 +1,11 @@
 # device_report.py
 
-import copy
 import csv
-from dateutil import parser
 import json
-import re
-import time
 import urllib3
+
+from util import convert_time
+from util import _get_name, _get_sn, _get_model, _get_user, _get_department, _get_position, _get_purchase_price, _get_purchase_date
 
 """
 - parses response_devices.json
@@ -19,12 +18,6 @@ with open("data/response_devices.json") as f:
 
 # ==================================================================================
 
-def convert_time(timestamp):
-  dt = parser.parse(timestamp)
-  return dt.strftime("%Y-%m-%d %H:%M:%S")
-
-# ==================================================================================
-
 def _get_date(device):
   try:
     return convert_time(device["date"])
@@ -34,38 +27,8 @@ def _get_date(device):
     except:
       return None
 
-def _get_name(device):
-  return device.get("name")
-
-def _get_sn(device):
-  return device.get("serial_number")
-
 def _get_os(device):
   return device.get("os")
-
-def _get_model(device):
-  return device.get("model_display")
-
-def _get_assigned_user(device):
-  return device.get("username")
-
-def _get_department(device):
-  full = device.get("department")
-  if re.search(r'(?i)\bStudent\b', full):
-    return "Student"
-  elif re.search(r'(?i)\b(?:Staff|Teacher|Admin|Childcare)\b', full):
-    return "Staff"
-  else:
-    return full
-
-def _get_position(device):
-  full = device.get("position")
-  if not full:
-    return None
-  m = re.search(r'(EGY)(\d{4})', full, re.IGNORECASE)
-  if m:
-    return int(m.group(2))
-  return full
 
 # add or modify columns here to be included in the final report
 COLUMNS = [
@@ -74,9 +37,11 @@ COLUMNS = [
   {"header": "SN", "func": _get_sn},
   {"header": "OS", "func": _get_os},
   {"header": "MODEL", "func": _get_model},
-  {"header": "ASSIGNED_USER", "func": _get_assigned_user},
+  {"header": "ASSIGNED_USER", "func": _get_user},
   {"header": "DEPT", "func": _get_department},
   {"header": "EGY", "func": _get_position},
+  {"header": "PURCHASE_PRICE", "func": _get_purchase_price},
+  {"header": "PURCHASE_DATE", "func": _get_purchase_date},
 ]
 
 # ==================================================================================

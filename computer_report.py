@@ -1,11 +1,12 @@
 # computer_report.py
 
 import csv
-from dateutil import parser
-from dateutil.tz import tzoffset
 import json
 import re
 import urllib3
+
+from util import convert_time
+from util import _get_name, _get_sn, _get_model, _get_user, _get_department, _get_position, _get_purchase_price, _get_purchase_date
 
 """
 - parses response_computers.json
@@ -13,18 +14,6 @@ import urllib3
 - cleanup columns for report
 - write results to data/computers.csv
 """
-
-# define ambiguous timezones thx claude
-TZ_INFO = {
-  "CDT": tzoffset("CDT", -5 * 3600),  # UTC-5
-  "CST": tzoffset("CST", -6 * 3600),  # UTC-6
-  "EDT": tzoffset("EDT", -4 * 3600),  # UTC-4
-  "EST": tzoffset("EST", -5 * 3600),  # UTC-5
-  "MDT": tzoffset("MDT", -6 * 3600),  # UTC-6
-  "MST": tzoffset("MST", -7 * 3600),  # UTC-7
-  "PDT": tzoffset("PDT", -7 * 3600),  # UTC-7
-  "PST": tzoffset("PST", -8 * 3600),  # UTC-8
-}
 
 with open("data/response_computers.json") as f:
   DATA = json.load(f)
@@ -38,10 +27,6 @@ def convert_report(report_str):
     kvp = line.split("\n")
     report_dict[kvp[0]] = kvp[1] if len(kvp) > 1 else None
   return report_dict
-
-def convert_time(timestamp):
-  dt = parser.parse(timestamp, tzinfos=TZ_INFO)
-  return dt.strftime("%Y-%m-%d %H:%M:%S")
 
 def normalize_uptime(uptime_str: str) -> int:
   # uptime str format: `Time since boot: x day(s), y hour(s), z minute(s)`
@@ -69,6 +54,8 @@ def clean_outputs(computer):
     report["UPTIME"] = hours
   except:
     pass
+  if not report: # if no report found set uptime to -1
+    report["UPTIME"] = -1
 
   # filevault
   try:
@@ -76,6 +63,7 @@ def clean_outputs(computer):
   except:
     pass
 
+  # update by reference
   computer["report_dict"] = report
   return
 
@@ -98,36 +86,9 @@ def _get_date(computer):
     except:
       return None
 
-def _get_name(computer):
-  return computer.get("name")
-
-def _get_sn(computer):
-  return computer.get("serial_number")
-
 def _get_os(computer):
   report = computer.get("report_dict")
-  return report.get("OS") if report else None
-
-def _get_logged_in_user(computer):
-  return computer.get("username")
-
-def _get_department(computer):
-  full = computer.get("department")
-  if re.search(r'(?i)\bStudent\b', full):
-    return "Student"
-  elif re.search(r'(?i)\b(?:Staff|Teacher|Admin|Childcare)\b', full):
-    return "Staff"
-  else:
-    return full
-
-def _get_position(computer):
-  full = computer.get("position") if computer else None
-  if not full:
-    return None
-  m = re.search(r'(EGY)(\d{4})', full, re.IGNORECASE)
-  if m:
-    return int(m.group(2))
-  return full
+  return report.get("OS") if report else computer.get("os_version")
 
 def _get_uptime(computer):
   report = computer.get("report_dict") if computer else None
@@ -140,9 +101,9 @@ def _get_filevault(computer):
   report = computer.get("report_dict")
   return report.get("FILEVAULT") if report else None
 
-def _get_jamf_manage(computer):
-  report = computer.get("report_dict")
-  return report.get("JAMF_MANAGE") if report else None
+# def _get_jamf_manage(computer):
+#   report = computer.get("report_dict")
+#   return report.get("JAMF_MANAGE") if report else None
 
 def _get_cloudflare_status(computer):
   report = computer.get("report_dict")
@@ -158,12 +119,15 @@ COLUMNS = [
   {"header": "NAME", "func": _get_name},
   {"header": "SN", "func": _get_sn},
   {"header": "OS", "func": _get_os},
-  {"header": "LOGGED_IN_USER", "func": _get_logged_in_user},
+  {"header": "MODEL", "func": _get_model},
+  {"header": "LOGGED_IN_USER", "func": _get_user},
   {"header": "DEPT", "func": _get_department},
   {"header": "EGY", "func": _get_position},
+  {"header": "PURCHASE_PRICE", "func": _get_purchase_price},
+  {"header": "PURCHASE_DATE", "func": _get_purchase_date},
   {"header": "UPTIME", "func": _get_uptime},
   {"header": "FILEVAULT", "func": _get_filevault},
-  {"header": "JAMF_MANAGE", "func": _get_jamf_manage},
+  # {"header": "JAMF_MANAGE", "func": _get_jamf_manage},
   {"header": "CLOUDFLARE_STATUS", "func": _get_cloudflare_status},
   {"header": "CLOUDFLARE_ORG", "func": _get_cloudflare_org},
 ]
@@ -179,7 +143,7 @@ def main():
     if report_str:
       computer["report_dict"] = convert_report(report_str)
     else:
-      computer["report_dict"] = None
+      computer["report_dict"] = {}
     clean_outputs(computer)
 
   # # write to debug file
