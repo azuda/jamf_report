@@ -100,7 +100,7 @@ def main():
         row.append("" if val is None else val)
       writer.writerow(row)
 
-  print("Done")
+  print("Done device_report.py")
 
 # ==================================================================================
 

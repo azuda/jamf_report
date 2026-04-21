@@ -243,7 +243,7 @@ def main():
 
   # kill access token
   invalidate_token(access_token)
-  print("Done query_jamf.py\n")
+  print("\nDone query_jamf.py")
 
 # ==================================================================================
 

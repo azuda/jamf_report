@@ -10,4 +10,4 @@ $VENV computer_report.py
 $VENV device_report.py
 $VENV upload.py
 
-echo -e "\nScript end @ $(date)"
+echo "\nScript end @ $(date)"
