@@ -8,53 +8,17 @@ import time
 import urllib3
 
 """
-- gets basic info about all computers + mobile devices in jamf
-- writes results to `data/response_computers.json` and `data/response_devices.json`
+- get info on all computers + mobile devices via jamf api
+- sort + combine relevant info into dicts
+- write result dicts to `data/response_computers.json` and `data/response_devices.json`
 """
 
 # ==================================================================================
 
-def get_computers_basic(access_token, token_expiration_epoch):
+def get(endpoint, access_token, token_expiration_epoch):
   access_token, token_expiration_epoch = check_token_expiration(access_token, token_expiration_epoch)
 
-  # GET basic info for all computers
-  url = f"{JAMF_URL}/JSSResource/computers/subset/basic"
-  headers = {
-    "accept": "application/json",
-    "authorization": f"Bearer {access_token}"
-  }
-  response = requests.get(url, headers=headers, verify=False)
-  return response, access_token, token_expiration_epoch
-
-def get_computers_userandlocation(access_token, token_expiration_epoch):
-  access_token, token_expiration_epoch = check_token_expiration(access_token, token_expiration_epoch)
-
-  # GET computers userAndLocation
-  url = f"{JAMF_URL}/api/v2/computers-inventory?section=USER_AND_LOCATION&page=0&page-size=2000&sort=id%3Aasc"
-  headers = {
-    "accept": "application/json",
-    "authorization": f"Bearer {access_token}"
-  }
-  response = requests.get(url, headers=headers, verify=False)
-  return response, access_token, token_expiration_epoch
-
-def get_computers_purchasing(access_token, token_expiration_epoch):
-  access_token, token_expiration_epoch  = check_token_expiration(access_token, token_expiration_epoch)
-
-  # GET computers purchasing info
-  url = f"{JAMF_URL}/api/v2/computers-inventory?section=PURCHASING&page=0&page-size=2000&sort=id%3Aasc"
-  headers = {
-    "accept": "application/json",
-    "authorization": f"Bearer {access_token}"
-  }
-  response = requests.get(url, headers=headers, verify=False)
-  return response, access_token, token_expiration_epoch
-
-def get_computers_extension_attributes(access_token, token_expiration_epoch):
-  access_token, token_expiration_epoch  = check_token_expiration(access_token, token_expiration_epoch)
-
-  # GET computers extension attributes
-  url = f"{JAMF_URL}/api/v2/computers-inventory?section=EXTENSION_ATTRIBUTES&page=0&page-size=2000&sort=id%3Aasc"
+  url = f"{JAMF_URL}{endpoint}"
   headers = {
     "accept": "application/json",
     "authorization": f"Bearer {access_token}"
@@ -97,54 +61,6 @@ def combine_computers(computers_response, computers_userandlocation_response, co
   computers_json["max_id"] = max([c["id"] for c in computers_json.get("computers", [])]) if total > 0 else 0
   return computers_json
 
-def get_devices(access_token, token_expiration_epoch):
-  access_token, token_expiration_epoch = check_token_expiration(access_token, token_expiration_epoch)
-
-  # GET all mobile devices
-  url = f"{JAMF_URL}/JSSResource/mobiledevices"
-  headers = {
-    "accept": "application/json",
-    "authorization": f"Bearer {access_token}"
-  }
-  response = requests.get(url, headers=headers, verify=False)
-  return response, access_token, token_expiration_epoch
-
-def get_devices_userandlocation(access_token, token_expiration_epoch):
-  access_token, token_expiration_epoch = check_token_expiration(access_token, token_expiration_epoch)
-
-  # GET mobile devices userAndLocation
-  url = f"{JAMF_URL}/api/v2/mobile-devices/detail?section=USER_AND_LOCATION&page=0&page-size=2000&sort=deviceId%3Aasc"
-  headers = {
-    "accept": "application/json",
-    "authorization": f"Bearer {access_token}"
-  }
-  response = requests.get(url, headers=headers, verify=False)
-  return response, access_token, token_expiration_epoch
-
-def get_devices_general(access_token, token_expiration_epoch):
-  access_token, token_expiration_epoch = check_token_expiration(access_token, token_expiration_epoch)
-
-  # GET mobile devices general
-  url = f"{JAMF_URL}/api/v2/mobile-devices/detail?section=GENERAL&page=0&page-size=2000&sort=deviceId%3Aasc"
-  headers = {
-    "accept": "application/json",
-    "authorization": f"Bearer {access_token}"
-  }
-  response = requests.get(url, headers=headers, verify=False)
-  return response, access_token, token_expiration_epoch
-
-def get_devices_purchasing(access_token, token_expiration_epoch):
-  access_token, token_expiration_epoch = check_token_expiration(access_token, token_expiration_epoch)
-
-  # GET mobile devices purchasing
-  url = f"{JAMF_URL}/api/v2/mobile-devices/detail?section=PURCHASING&page=0&page-size=2000&sort=deviceId%3Aasc"
-  headers = {
-    "accept": "application/json",
-    "authorization": f"Bearer {access_token}"
-  }
-  response = requests.get(url, headers=headers, verify=False)
-  return response, access_token, token_expiration_epoch
-
 def combine_devices(devices_response, devices_userandlocation_response, devices_general_response, devices_purchasing_response):
   devices_json = {}
   devices_json["devices"] = devices_response.json().get("mobile_devices", [])
@@ -184,7 +100,7 @@ def combine_devices(devices_response, devices_userandlocation_response, devices_
 # ==================================================================================
 
 def main():
-  # create access token
+  # create jamf access token
   access_token, expires_in = get_token()
   token_expiration_epoch = int(time.time()) + expires_in
   print(f"Token valid for {expires_in} seconds")
@@ -196,18 +112,21 @@ def main():
   print("Jamf Pro version:", version.json()["version"])
 
   # get info for all computers
-  computers, access_token, token_expiration_epoch  = get_computers_basic(access_token, token_expiration_epoch)
-  computers_users, access_token, token_expiration_epoch  = get_computers_userandlocation(access_token, token_expiration_epoch)
-  computers_purchasing, access_token, token_expiration_epoch = get_computers_purchasing(access_token, token_expiration_epoch)
-  computers_extension_attributes, access_token, token_expiration_epoch = get_computers_extension_attributes(access_token, token_expiration_epoch)
+  computers, access_token, token_expiration_epoch  = get("/JSSResource/computers/subset/basic", access_token, token_expiration_epoch)
+  computers_users, access_token, token_expiration_epoch  = get("/api/v2/computers-inventory?section=USER_AND_LOCATION&page=0&page-size=2000&sort=id%3Aasc", access_token, token_expiration_epoch)
+  computers_purchasing, access_token, token_expiration_epoch = get("/api/v2/computers-inventory?section=PURCHASING&page=0&page-size=2000&sort=id%3Aasc", access_token, token_expiration_epoch)
+  computers_extension_attributes, access_token, token_expiration_epoch = get("/api/v2/computers-inventory?section=EXTENSION_ATTRIBUTES&page=0&page-size=2000&sort=id%3Aasc", access_token, token_expiration_epoch)
   computers_json = combine_computers(computers, computers_users, computers_purchasing, computers_extension_attributes)
 
   # get info for all mobile devices
-  devices, access_token, token_expiration_epoch = get_devices(access_token, token_expiration_epoch)
-  devices_users, access_token, token_expiration_epoch = get_devices_userandlocation(access_token, token_expiration_epoch)
-  devices_general, access_token, token_expiration_epoch = get_devices_general(access_token, token_expiration_epoch)
-  devices_purchasing, access_token, token_expiration_epoch = get_devices_purchasing(access_token, token_expiration_epoch)
+  devices, access_token, token_expiration_epoch = get("/JSSResource/mobiledevices", access_token, token_expiration_epoch)
+  devices_users, access_token, token_expiration_epoch = get("/api/v2/mobile-devices/detail?section=USER_AND_LOCATION&page=0&page-size=2000&sort=deviceId%3Aasc", access_token, token_expiration_epoch)
+  devices_general, access_token, token_expiration_epoch = get("/api/v2/mobile-devices/detail?section=GENERAL&page=0&page-size=2000&sort=deviceId%3Aasc", access_token, token_expiration_epoch)
+  devices_purchasing, access_token, token_expiration_epoch = get("/api/v2/mobile-devices/detail?section=PURCHASING&page=0&page-size=2000&sort=deviceId%3Aasc", access_token, token_expiration_epoch)
   devices_json = combine_devices(devices, devices_users, devices_general, devices_purchasing)
+
+  # kill jamf access token
+  invalidate_token(access_token)
 
   # raw api responses for debug
   if not os.path.exists("debug"):
@@ -232,17 +151,13 @@ def main():
   # write to file
   if not os.path.exists("data"):
     os.makedirs("data")
-
   with open("data/response_computers.json", "w") as f:
     f.write(json.dumps(computers_json, indent=2))
   print("--- Jamf computers saved to ./data/response_computers.json ---")
-
   with open("data/response_devices.json", "w") as f:
     f.write(json.dumps(devices_json, indent=2))
   print("--- Jamf devices saved to ./data/response_devices.json ---")
 
-  # kill access token
-  invalidate_token(access_token)
   print("\nDone query_jamf.py")
 
 # ==================================================================================
