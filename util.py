@@ -24,7 +24,7 @@ TZ_INFO = {
   "PST": tzoffset("PST", -8 * 3600),  # UTC-8
 }
 
-def convert_time(timestamp):
+def convert_datetime(timestamp):
   dt = parser.parse(timestamp, tzinfos=TZ_INFO)
   return dt.strftime("%Y-%m-%d %H:%M:%S")
 

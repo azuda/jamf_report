@@ -10,7 +10,7 @@ import csv
 import json
 import urllib3
 
-from util import convert_time
+from util import convert_datetime
 from util import _get_name, _get_sn, _get_model, _get_user, _get_department, _get_position, _get_purchase_price, _get_purchase_date
 
 with open("data/response_devices.json") as f:
@@ -20,7 +20,7 @@ with open("data/response_devices.json") as f:
 
 def _get_date(device):
   try:
-    return convert_time(device["date"])
+    return convert_datetime(device["date"])
   except:
     try:
       return device["date"].split(".")[0]

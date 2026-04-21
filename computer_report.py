@@ -12,7 +12,7 @@ import json
 import re
 import urllib3
 
-from util import convert_time
+from util import convert_datetime
 from util import _get_name, _get_sn, _get_model, _get_user, _get_department, _get_position, _get_purchase_price, _get_purchase_date
 
 with open("data/response_computers.json") as f:
@@ -74,12 +74,12 @@ def _get_date(computer):
   # print(f"converting date for computer {computer.get("name")}")
   if report and report.get("DATE"):
     try:
-      return convert_time(report["DATE"])
+      return convert_datetime(report["DATE"])
     except:
       return report.get("DATE")
   # fallback to last checkin date
   try:
-    return convert_time(computer["report_date_utc"])
+    return convert_datetime(computer["report_date_utc"])
   except:
     try:
       return computer["report_date_utc"].split(".")[0]
