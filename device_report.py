@@ -32,7 +32,7 @@ def _get_os(device):
 
 # add or modify columns here to be included in the final report
 COLUMNS = [
-  {"header": "DATE", "func": _get_date},
+  {"header": "LAST_CHECKIN", "func": _get_date},
   {"header": "NAME", "func": _get_name},
   {"header": "SN", "func": _get_sn},
   {"header": "OS", "func": _get_os},
