@@ -113,6 +113,8 @@ def main():
   print("Jamf Pro version:", version.json()["version"])
 
   # get info for all computers
+  # https://developer.jamf.com/jamf-pro/reference/findcomputersbasic
+  # https://developer.jamf.com/jamf-pro/reference/get_v2-computers-inventory
   computers, access_token, token_expiration_epoch  = get("/JSSResource/computers/subset/basic", access_token, token_expiration_epoch)
   computers_users, access_token, token_expiration_epoch  = get("/api/v2/computers-inventory?section=USER_AND_LOCATION&page=0&page-size=2000&sort=id%3Aasc", access_token, token_expiration_epoch)
   computers_purchasing, access_token, token_expiration_epoch = get("/api/v2/computers-inventory?section=PURCHASING&page=0&page-size=2000&sort=id%3Aasc", access_token, token_expiration_epoch)
@@ -120,6 +122,8 @@ def main():
   computers_json = combine_computers(computers, computers_users, computers_purchasing, computers_extension_attributes)
 
   # get info for all mobile devices
+  # https://developer.jamf.com/jamf-pro/reference/findmobiledevices
+  # https://developer.jamf.com/jamf-pro/reference/get_v2-mobile-devices-detail
   devices, access_token, token_expiration_epoch = get("/JSSResource/mobiledevices", access_token, token_expiration_epoch)
   devices_users, access_token, token_expiration_epoch = get("/api/v2/mobile-devices/detail?section=USER_AND_LOCATION&page=0&page-size=2000&sort=deviceId%3Aasc", access_token, token_expiration_epoch)
   devices_general, access_token, token_expiration_epoch = get("/api/v2/mobile-devices/detail?section=GENERAL&page=0&page-size=2000&sort=deviceId%3Aasc", access_token, token_expiration_epoch)
