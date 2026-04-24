@@ -4,6 +4,7 @@
 - helper functions for report generation
 """
 
+from datetime import date
 from dateutil import parser
 from dateutil.tz import tzoffset
 import re
@@ -63,13 +64,20 @@ def _get_department(e):
     return full
 
 def _get_position(e):
-  full = e.get("position") if e else None
-  if not full:
+  raw = e.get("position") if e else None
+  if not raw:
     return None
-  m = re.search(r'(EGY)(\d{4})', full, re.IGNORECASE)
-  if m:
-    return int(m.group(2))
-  return full
+  pos = re.search(r'(EGY)(\d{4})', raw, re.IGNORECASE)
+  if pos:
+    egy = int(pos.group(2))
+    today = date.today()
+    current_grad_year = today.year if today.month < 9 else today.year + 1
+    grade = 12 - (egy - current_grad_year)
+    if grade == 0:
+      return "K"
+    if 1 <= grade <= 12:
+      return f"Grade {grade}"
+  return raw
 
 def _get_purchase_price(e):
   price = e.get("purchase_price")

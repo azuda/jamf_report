@@ -40,7 +40,7 @@ COLUMNS = [
   {"header": "USER", "func": _get_user},
   {"header": "BLDG", "func": _get_building},
   {"header": "DEPT", "func": _get_department},
-  {"header": "EGY", "func": _get_position},
+  {"header": "POS", "func": _get_position},
   {"header": "PURCHASE_PRICE", "func": _get_purchase_price},
   {"header": "PURCHASE_DATE", "func": _get_purchase_date},
 ]
