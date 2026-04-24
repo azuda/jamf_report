@@ -48,6 +48,11 @@ def _get_model(e):
 def _get_user(e):
   return e.get("username")
 
+def _get_building(e):
+  raw = e.get("building")
+  parts = [b for b in raw.split() if not re.search(r"^Rundle$", b, re.IGNORECASE)]
+  return " ".join(parts) or None
+
 def _get_department(e):
   full = e.get("department")
   if re.search(r'(?i)\bStudent\b', full):

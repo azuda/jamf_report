@@ -13,7 +13,7 @@ import re
 import urllib3
 
 from util import convert_datetime
-from util import _get_name, _get_sn, _get_model, _get_user, _get_department, _get_position, _get_purchase_price, _get_purchase_date
+from util import _get_name, _get_sn, _get_model, _get_user, _get_building, _get_department, _get_position, _get_purchase_price, _get_purchase_date
 
 with open("data/response_computers.json") as f:
   DATA = json.load(f)
@@ -125,6 +125,7 @@ COLUMNS = [
   {"header": "OS", "func": _get_os},
   {"header": "MODEL", "func": _get_model},
   {"header": "USER", "func": _get_user},
+  {"header": "BLDG", "func": _get_building},
   {"header": "DEPT", "func": _get_department},
   {"header": "EGY", "func": _get_position},
   {"header": "PURCHASE_PRICE", "func": _get_purchase_price},

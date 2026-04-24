@@ -85,6 +85,7 @@ def combine_devices(devices_response, devices_userandlocation_response, devices_
         d["email"] = du_data["emailAddress"]
         d["position"] = du_data["position"]
         d["department"] = du_data["department"]
+        d["building"] = du_data["building"]
         break
     for dp in devices_purchasing_json:
       if d["id"] == int(dp["mobileDeviceId"]):
