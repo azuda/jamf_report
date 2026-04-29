@@ -60,6 +60,8 @@ def _get_department(e):
     return "Student"
   elif re.search(r'(?i)\b(?:Staff|Teacher|Admin|Childcare)\b', full):
     return "Staff"
+  elif re.search(r'(?i)\bLoaner\b', full):
+    return "Loaner"
   else:
     return full
 
