@@ -20,10 +20,10 @@
 		</dict>
 
 		<key>StandardErrorPath</key>
-		<string>/Users/atrac/Scripts/jamf_computer_report/stderr.log</string>
+		<string>$PWD/jamf_computer_report/stderr.log</string>
 
 		<key>StandardOutPath</key>
-		<string>/Users/atrac/Scripts/jamf_computer_report/stdout.log</string>
+		<string>$PWD/jamf_computer_report/stdout.log</string>
 
 		<key>EnvironmentVariables</key>
 		<dict>
@@ -32,12 +32,12 @@
 		</dict>
 
 		<key>WorkingDirectory</key>
-		<string>/Users/atrac/Scripts/jamf_computer_report/</string>
+		<string>$PWD/jamf_computer_report/</string>
 
 		<key>ProgramArguments</key>
 		<array>
 			<string>/bin/bash</string>
-			<string>/Users/atrac/Scripts/jamf_computer_report/run.sh</string>
+			<string>$PWD/jamf_computer_report/run.sh</string>
 		</array>
 
 	</dict>
