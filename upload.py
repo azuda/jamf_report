@@ -14,7 +14,7 @@ scope = ["https://spreadsheets.google.com/feeds", 'https://www.googleapis.com/au
 credentials = ServiceAccountCredentials.from_json_keyfile_name("client_secret.json", scope)
 client = gspread.authorize(credentials)
 
-spreadsheet = client.open("[csv2sheet] Rundle Jamf Report")
+spreadsheet = client.open("[autosync] Rundle Jamf Report")
 
 def upload_csv_to_sheet(filepath, tab_name):
   worksheet = spreadsheet.worksheet(tab_name)
