@@ -15,6 +15,8 @@ import re
 
 # define ambiguous timezones thx claude
 TZ_INFO = {
+  "ADT": tzoffset("ADT", -3 * 3600),  # UTC-3
+  "AST": tzoffset("AST", -4 * 3600),  # UTC-4
   "CDT": tzoffset("CDT", -5 * 3600),  # UTC-5
   "CST": tzoffset("CST", -6 * 3600),  # UTC-6
   "EDT": tzoffset("EDT", -4 * 3600),  # UTC-4
@@ -51,11 +53,15 @@ def _get_user(e):
 
 def _get_building(e):
   raw = e.get("building")
+  if not raw:
+    return None
   parts = [b for b in raw.split() if not re.search(r"^Rundle$", b, re.IGNORECASE)]
   return " ".join(parts) or None
 
 def _get_department(e):
   full = e.get("department")
+  if not full:
+    return None
   if re.search(r'(?i)\bStudent\b', full):
     return "Student"
   elif re.search(r'(?i)\b(?:Staff|Teacher|Admin|Childcare)\b', full):
@@ -86,6 +92,6 @@ def _get_purchase_price(e):
   return price if price else None
 
 def _get_purchase_date(e):
-  date = e.get("purchase_date")
-  # return convert_date_simple(date) if date else "1970-01-01"
-  return convert_date_simple(date) if date else None
+  purchase_date = e.get("purchase_date")
+  # return convert_date_simple(purchase_date) if purchase_date else "1970-01-01"
+  return convert_date_simple(purchase_date) if purchase_date else None

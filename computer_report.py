@@ -10,13 +10,16 @@
 import csv
 import json
 import re
-import urllib3
 
 from util import convert_datetime
 from util import _get_name, _get_sn, _get_model, _get_user, _get_building, _get_department, _get_position, _get_purchase_price, _get_purchase_date
 
-with open("data/response_computers.json") as f:
-  DATA = json.load(f)
+DATA_PATH = "data/response_computers.json"
+try:
+  with open(DATA_PATH) as f:
+    DATA = json.load(f)
+except (FileNotFoundError, json.JSONDecodeError) as e:
+  raise SystemExit(f"computer_report.py: could not load {DATA_PATH}: {e}")
 
 # ==================================================================================
 
@@ -52,8 +55,10 @@ def clean_outputs(computer):
   try:
     hours = normalize_uptime(report["UPTIME"])
     report["UPTIME"] = hours
-  except:
-    pass
+  except (KeyError, TypeError) as e:
+    # missing UPTIME is normal (no report); an unparseable one is worth a log line
+    if "UPTIME" in report:
+      print(f"warn: could not parse uptime for {computer.get('name')}: {e}")
   if not report: # if no report found set uptime to -1
     report["UPTIME"] = -1
 
@@ -62,10 +67,11 @@ def clean_outputs(computer):
     fv = report["FILEVAULT"].split("]")[-1].strip()
     try:
       report["FILEVAULT"] = fv.split(" ")[3].strip()
-    except:
+    except IndexError:
       report["FILEVAULT"] = fv
-  except:
-    pass
+  except (KeyError, AttributeError) as e:
+    if "FILEVAULT" in report:
+      print(f"warn: could not parse filevault for {computer.get('name')}: {e}")
 
   # update by reference
   computer["report_dict"] = report
@@ -79,15 +85,15 @@ def _get_date(computer):
   if report and report.get("DATE"):
     try:
       return convert_datetime(report["DATE"])
-    except:
+    except (ValueError, OverflowError):
       return report.get("DATE")
   # fallback to last checkin date
   try:
     return convert_datetime(computer["report_date_utc"])
-  except:
+  except (KeyError, TypeError, ValueError, OverflowError):
     try:
       return computer["report_date_utc"].split(".")[0]
-    except:
+    except (KeyError, AttributeError):
       return None
 
 def _get_os(computer):
@@ -165,7 +171,9 @@ def main():
       for col in COLUMNS:
         try:
           val = col["func"](computer)
-        except Exception:
+        except Exception as e:
+          # last-resort guard: one bad record shouldn't kill the report, but log it
+          print(f"warn: {col['header']} failed for {computer.get('name')}: {e}")
           val = None
         # normalize None -> empty cell, keep numeric and string values as-is
         row.append("" if val is None else val)
@@ -176,5 +184,4 @@ def main():
 # ==================================================================================
 
 if __name__ == "__main__":
-  urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
   main()

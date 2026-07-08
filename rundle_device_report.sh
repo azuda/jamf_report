@@ -6,10 +6,10 @@
 REPORT_BASE_DIR="/Users/rundleadmin/Library/Application Support/rundle_device_report"
 
 # create report dir if it doesnt exist
-while ! [ -d "${REPORT_BASE_DIR}" ]; do
-	echo "Creating report dir..."
-	mkdir -p "${REPORT_BASE_DIR}"
-done
+if ! mkdir -p "${REPORT_BASE_DIR}"; then
+	echo "Failed to create report dir: ${REPORT_BASE_DIR}"
+	exit 1
+fi
 
 # path to report file
 DEVICE_NAME=$(hostname)

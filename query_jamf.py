@@ -11,7 +11,6 @@ import json
 import os
 import requests
 import time
-import urllib3
 
 # ==================================================================================
 
@@ -23,79 +22,80 @@ def get(endpoint, access_token, token_expiration_epoch):
     "accept": "application/json",
     "authorization": f"Bearer {access_token}"
   }
-  response = requests.get(url, headers=headers, verify=False)
+  response = requests.get(url, headers=headers, timeout=30)
+  response.raise_for_status()
   return response, access_token, token_expiration_epoch
 
-def combine_computers(computers_response, computers_userandlocation_response, computers_purchasing_response, computers_extension_attributes_response):
+def get_all_pages(endpoint, access_token, token_expiration_epoch, page_size=2000):
+  # accumulate every page of a paginated /api/v2 endpoint so the report
+  # doesn't silently truncate once inventory grows past one page
+  results = []
+  page = 0
+  while True:
+    response, access_token, token_expiration_epoch = get(
+      f"{endpoint}&page={page}&page-size={page_size}", access_token, token_expiration_epoch)
+    body = response.json()
+    page_results = body.get("results", [])
+    results.extend(page_results)
+    if len(results) >= body.get("totalCount", 0) or not page_results:
+      break
+    page += 1
+  return {"totalCount": body.get("totalCount", 0), "results": results}, access_token, token_expiration_epoch
+
+def combine_computers(computers_response, computers_users, computers_purchasing, computers_extension_attributes):
   computers_json = {}
   computers_json["computers"] = computers_response.json().get("computers", [])
-  computers_users_json = computers_userandlocation_response.json().get("results", [])
-  computers_purchasing_json = computers_purchasing_response.json().get("results", [])
-  computers_extension_attributes_json = computers_extension_attributes_response.json().get("results", [])
-  total = 0
+  users_by_id = {int(cu["id"]): cu["userAndLocation"] for cu in computers_users["results"]}
+  purchasing_by_id = {int(cp["id"]): cp["purchasing"] for cp in computers_purchasing["results"]}
+  ea_by_id = {int(cea["id"]): cea["extensionAttributes"] for cea in computers_extension_attributes["results"]}
 
   for c in computers_json["computers"]:
-    total += 1
     c["realname"], c["email"], c["position"], c["purchase_price"], c["purchase_date"], c["report"] = None, None, None, None, None, None
-    for cu in computers_users_json:
-      if c["id"] == int(cu["id"]):
-        cu_data = cu["userAndLocation"]
-        c["realname"] = cu_data["realname"]
-        c["email"] = cu_data["email"]
-        c["position"] = cu_data["position"]
-        break
-    for cp in computers_purchasing_json:
-      if c["id"] == int(cp["id"]):
-        cp_data = cp["purchasing"]
-        c["purchase_price"] = cp_data["purchasePrice"]
-        c["purchase_date"] = cp_data["poDate"]
-        break
-    for cea in computers_extension_attributes_json:
-      if c["id"] == int(cea["id"]):
-        cea_data = cea["extensionAttributes"]
-        report = [c for c in cea_data if c["name"] == "Rundle Device Report"][0]["values"] if any(c["name"] == "Rundle Device Report" for c in cea_data) else None
-        c["report"] = report[0] if report and len(report) > 0 else None
-        break
+    cu_data = users_by_id.get(c["id"])
+    if cu_data:
+      c["realname"] = cu_data["realname"]
+      c["email"] = cu_data["email"]
+      c["position"] = cu_data["position"]
+    cp_data = purchasing_by_id.get(c["id"])
+    if cp_data:
+      c["purchase_price"] = cp_data["purchasePrice"]
+      c["purchase_date"] = cp_data["poDate"]
+    cea_data = ea_by_id.get(c["id"])
+    if cea_data:
+      report = next((attr["values"] for attr in cea_data if attr["name"] == "Rundle Device Report"), None)
+      c["report"] = report[0] if report else None
 
-  computers_json["total"] = total
-  computers_json["max_id"] = max([c["id"] for c in computers_json.get("computers", [])]) if total > 0 else 0
+  computers_json["total"] = len(computers_json["computers"])
+  computers_json["max_id"] = max((c["id"] for c in computers_json["computers"]), default=0)
   return computers_json
 
-def combine_devices(devices_response, devices_userandlocation_response, devices_general_response, devices_purchasing_response):
+def combine_devices(devices_response, devices_users, devices_general, devices_purchasing):
   devices_json = {}
   devices_json["devices"] = devices_response.json().get("mobile_devices", [])
-  devices_users_json = devices_userandlocation_response.json().get("results", [])
-  devices_general_json = devices_general_response.json().get("results", [])
-  devices_purchasing_json = devices_purchasing_response.json().get("results", [])
+  general_by_id = {int(dg["mobileDeviceId"]): dg["general"] for dg in devices_general["results"]}
+  users_by_id = {int(du["mobileDeviceId"]): du["userAndLocation"] for du in devices_users["results"]}
+  purchasing_by_id = {int(dp["mobileDeviceId"]): dp["purchasing"] for dp in devices_purchasing["results"]}
 
-  total = 0
   for d in devices_json["devices"]:
-    total += 1
     d["date"], d["os"], d["realname"], d["email"], d["position"], d["department"], d["purchase_price"], d["purchase_date"] = None, None, None, None, None, None, None, None
-    for dg in devices_general_json:
-      if d["id"] == int(dg["mobileDeviceId"]):
-        dg_data = dg["general"]
-        d["date"] = dg_data["lastInventoryUpdateDate"]
-        d["os"] = dg_data["osVersion"]
-        break
-    for du in devices_users_json:
-      if d["id"] == int(du["mobileDeviceId"]):
-        du_data = du["userAndLocation"]
-        d["realname"] = du_data["realName"]
-        d["email"] = du_data["emailAddress"]
-        d["position"] = du_data["position"]
-        d["department"] = du_data["department"]
-        d["building"] = du_data["building"]
-        break
-    for dp in devices_purchasing_json:
-      if d["id"] == int(dp["mobileDeviceId"]):
-        dp_data = dp["purchasing"]
-        d["purchase_price"] = dp_data["purchasePrice"]
-        d["purchase_date"] = dp_data["poDate"]
-        break
+    dg_data = general_by_id.get(d["id"])
+    if dg_data:
+      d["date"] = dg_data["lastInventoryUpdateDate"]
+      d["os"] = dg_data["osVersion"]
+    du_data = users_by_id.get(d["id"])
+    if du_data:
+      d["realname"] = du_data["realName"]
+      d["email"] = du_data["emailAddress"]
+      d["position"] = du_data["position"]
+      d["department"] = du_data["department"]
+      d["building"] = du_data["building"]
+    dp_data = purchasing_by_id.get(d["id"])
+    if dp_data:
+      d["purchase_price"] = dp_data["purchasePrice"]
+      d["purchase_date"] = dp_data["poDate"]
 
-  devices_json["total"] = total
-  devices_json["max_id"] = max([d["id"] for d in devices_json.get("devices", [])]) if total > 0 else 0
+  devices_json["total"] = len(devices_json["devices"])
+  devices_json["max_id"] = max((d["id"] for d in devices_json["devices"]), default=0)
   return devices_json
 
 # ==================================================================================
@@ -109,25 +109,26 @@ def main():
   # print jamf pro version
   version_url = f"{JAMF_URL}/api/v1/jamf-pro-version"
   headers = {"Authorization": f"Bearer {access_token}"}
-  version = requests.get(version_url, headers=headers, verify=False)
+  version = requests.get(version_url, headers=headers, timeout=30)
+  version.raise_for_status()
   print("Jamf Pro version:", version.json()["version"])
 
   # get info for all computers
   # https://developer.jamf.com/jamf-pro/reference/findcomputersbasic
   # https://developer.jamf.com/jamf-pro/reference/get_v2-computers-inventory
   computers, access_token, token_expiration_epoch  = get("/JSSResource/computers/subset/basic", access_token, token_expiration_epoch)
-  computers_users, access_token, token_expiration_epoch  = get("/api/v2/computers-inventory?section=USER_AND_LOCATION&page=0&page-size=2000&sort=id%3Aasc", access_token, token_expiration_epoch)
-  computers_purchasing, access_token, token_expiration_epoch = get("/api/v2/computers-inventory?section=PURCHASING&page=0&page-size=2000&sort=id%3Aasc", access_token, token_expiration_epoch)
-  computers_extension_attributes, access_token, token_expiration_epoch = get("/api/v2/computers-inventory?section=EXTENSION_ATTRIBUTES&page=0&page-size=2000&sort=id%3Aasc", access_token, token_expiration_epoch)
+  computers_users, access_token, token_expiration_epoch  = get_all_pages("/api/v2/computers-inventory?section=USER_AND_LOCATION&sort=id%3Aasc", access_token, token_expiration_epoch)
+  computers_purchasing, access_token, token_expiration_epoch = get_all_pages("/api/v2/computers-inventory?section=PURCHASING&sort=id%3Aasc", access_token, token_expiration_epoch)
+  computers_extension_attributes, access_token, token_expiration_epoch = get_all_pages("/api/v2/computers-inventory?section=EXTENSION_ATTRIBUTES&sort=id%3Aasc", access_token, token_expiration_epoch)
   computers_json = combine_computers(computers, computers_users, computers_purchasing, computers_extension_attributes)
 
   # get info for all mobile devices
   # https://developer.jamf.com/jamf-pro/reference/findmobiledevices
   # https://developer.jamf.com/jamf-pro/reference/get_v2-mobile-devices-detail
   devices, access_token, token_expiration_epoch = get("/JSSResource/mobiledevices", access_token, token_expiration_epoch)
-  devices_users, access_token, token_expiration_epoch = get("/api/v2/mobile-devices/detail?section=USER_AND_LOCATION&page=0&page-size=2000&sort=deviceId%3Aasc", access_token, token_expiration_epoch)
-  devices_general, access_token, token_expiration_epoch = get("/api/v2/mobile-devices/detail?section=GENERAL&page=0&page-size=2000&sort=deviceId%3Aasc", access_token, token_expiration_epoch)
-  devices_purchasing, access_token, token_expiration_epoch = get("/api/v2/mobile-devices/detail?section=PURCHASING&page=0&page-size=2000&sort=deviceId%3Aasc", access_token, token_expiration_epoch)
+  devices_users, access_token, token_expiration_epoch = get_all_pages("/api/v2/mobile-devices/detail?section=USER_AND_LOCATION&sort=deviceId%3Aasc", access_token, token_expiration_epoch)
+  devices_general, access_token, token_expiration_epoch = get_all_pages("/api/v2/mobile-devices/detail?section=GENERAL&sort=deviceId%3Aasc", access_token, token_expiration_epoch)
+  devices_purchasing, access_token, token_expiration_epoch = get_all_pages("/api/v2/mobile-devices/detail?section=PURCHASING&sort=deviceId%3Aasc", access_token, token_expiration_epoch)
   devices_json = combine_devices(devices, devices_users, devices_general, devices_purchasing)
 
   # kill jamf access token
@@ -139,19 +140,19 @@ def main():
   with open("debug/c.json", "w") as f:
     f.write(json.dumps(computers.json(), indent=2))
   with open("debug/cu.json", "w") as f:
-    f.write(json.dumps(computers_users.json(), indent=2))
+    f.write(json.dumps(computers_users, indent=2))
   with open("debug/cp.json", "w") as f:
-    f.write(json.dumps(computers_purchasing.json(), indent=2))
+    f.write(json.dumps(computers_purchasing, indent=2))
   with open("debug/cea.json", "w") as f:
-    f.write(json.dumps(computers_extension_attributes.json(), indent=2))
+    f.write(json.dumps(computers_extension_attributes, indent=2))
   with open("debug/d.json", "w") as f:
     f.write(json.dumps(devices.json(), indent=2))
   with open("debug/du.json", "w") as f:
-    f.write(json.dumps(devices_users.json(), indent=2))
+    f.write(json.dumps(devices_users, indent=2))
   with open("debug/dg.json", "w") as f:
-    f.write(json.dumps(devices_general.json(), indent=2))
+    f.write(json.dumps(devices_general, indent=2))
   with open("debug/dp.json", "w") as f:
-    f.write(json.dumps(devices_purchasing.json(), indent=2))
+    f.write(json.dumps(devices_purchasing, indent=2))
 
   # write to file
   if not os.path.exists("data"):
@@ -168,5 +169,4 @@ def main():
 # ==================================================================================
 
 if __name__ == "__main__":
-  urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
   main()

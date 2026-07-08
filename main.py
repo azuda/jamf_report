@@ -20,7 +20,11 @@ def main():
   print(f"Script start @ {datetime.now()}", flush=True)
 
   for script in SCRIPTS:
-    result = subprocess.run([sys.executable, script], cwd=PROJECT_ROOT)
+    try:
+      result = subprocess.run([sys.executable, script], cwd=PROJECT_ROOT, timeout=600)
+    except subprocess.TimeoutExpired:
+      print(f"{script} timed out after 600s, aborting", file=sys.stderr, flush=True)
+      sys.exit(1)
     if result.returncode != 0:
       # stop the pipeline — uploading stale/partial data is worse than skipping a day
       print(f"{script} exited with code {result.returncode}, aborting", file=sys.stderr, flush=True)

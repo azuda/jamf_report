@@ -8,23 +8,26 @@
 
 import csv
 import json
-import urllib3
 
 from util import convert_datetime
 from util import _get_name, _get_sn, _get_model, _get_user, _get_building, _get_department, _get_position, _get_purchase_price, _get_purchase_date
 
-with open("data/response_devices.json") as f:
-  DATA = json.load(f)
+DATA_PATH = "data/response_devices.json"
+try:
+  with open(DATA_PATH) as f:
+    DATA = json.load(f)
+except (FileNotFoundError, json.JSONDecodeError) as e:
+  raise SystemExit(f"device_report.py: could not load {DATA_PATH}: {e}")
 
 # ==================================================================================
 
 def _get_date(device):
   try:
     return convert_datetime(device["date"])
-  except:
+  except (KeyError, TypeError, ValueError, OverflowError):
     try:
       return device["date"].split(".")[0]
-    except:
+    except (KeyError, AttributeError):
       return None
 
 def _get_os(device):
@@ -60,7 +63,9 @@ def main():
       for col in COLUMNS:
         try:
           val = col["func"](d)
-        except Exception:
+        except Exception as e:
+          # last-resort guard: one bad record shouldn't kill the report, but log it
+          print(f"warn: {col['header']} failed for {d.get('name')}: {e}")
           val = None
         # normalize None -> empty cell, keep numeric and string values as-is
         row.append("" if val is None else val)
@@ -71,5 +76,4 @@ def main():
 # ==================================================================================
 
 if __name__ == "__main__":
-  urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
   main()

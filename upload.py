@@ -3,31 +3,29 @@
 
 import csv
 import gspread
-from oauth2client.service_account import ServiceAccountCredentials
-import urllib3
 
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
-scope = ["https://spreadsheets.google.com/feeds", 'https://www.googleapis.com/auth/spreadsheets',
-         "https://www.googleapis.com/auth/drive.file", "https://www.googleapis.com/auth/drive"]
-
-credentials = ServiceAccountCredentials.from_json_keyfile_name("client_secret.json", scope)
-client = gspread.authorize(credentials)
-
+client = gspread.service_account(filename="client_secret.json")
 spreadsheet = client.open("[autosync] Rundle Jamf Report")
 
 def upload_csv_to_sheet(filepath, tab_name):
-  worksheet = spreadsheet.worksheet(tab_name)
-  worksheet.clear()
   with open(filepath, "r") as f:
     data = list(csv.reader(f))
+
+  # overwrite in place instead of clear()-then-update(): if the update fails,
+  # the tab keeps yesterday's data rather than being left empty
+  worksheet = spreadsheet.worksheet(tab_name)
   worksheet.update(data)
 
-upload_csv_to_sheet("data/computers.csv", "Computer Report")
-upload_csv_to_sheet("data/devices.csv", "Device Report")
+  # trim leftover rows/cols from a larger previous upload
+  rows = len(data)
+  cols = max((len(r) for r in data), default=0)
+  if worksheet.row_count > rows or worksheet.col_count > cols:
+    worksheet.resize(rows=max(rows, 1), cols=max(cols, 1))
 
-print("Done upload.py")
+def main():
+  upload_csv_to_sheet("data/computers.csv", "Computer Report")
+  upload_csv_to_sheet("data/devices.csv", "Device Report")
+  print("Done upload.py")
 
-# with open("data/computers.csv", "r") as f:
-#   content = f.read()
-#   client.import_csv(spreadsheet.id, data=content)
+if __name__ == "__main__":
+  main()
